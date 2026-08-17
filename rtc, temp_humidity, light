@@ -1,0 +1,155 @@
+#include <Wire.h>
+#include <DHT.h>
+#include <BH1750.h>
+#include <RTClib.h>
+
+// ---------------- PIN DEFINITIONS ----------------
+
+#define DHT_PIN 4
+#define DHT_TYPE DHT22
+
+#define SDA_PIN 21
+#define SCL_PIN 22
+
+// ---------------- SENSOR OBJECTS ----------------
+
+DHT dht(DHT_PIN, DHT_TYPE);
+
+BH1750 lightMeter;
+
+RTC_DS3231 rtc;
+
+// ---------------- SETUP ----------------
+
+void setup() {
+
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println();
+  Serial.println("Biomedical Container Sensor Test");
+  Serial.println("--------------------------------");
+
+  // Start I2C
+  Wire.begin(SDA_PIN, SCL_PIN);
+
+  // Start DHT22
+  dht.begin();
+
+  // Start BH1750
+  if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+    Serial.println("BH1750: OK");
+  } 
+  else {
+    Serial.println("BH1750: ERROR");
+  }
+
+  // Start DS3231
+  if (!rtc.begin()) {
+    Serial.println("DS3231: ERROR");
+    while (1) {
+      delay(10);
+    }
+  }
+
+  Serial.println("DS3231: OK");
+
+  // Check if RTC lost power
+  if (rtc.lostPower()) {
+
+    Serial.println("RTC lost power.");
+
+    // Set RTC to the computer's compile time
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+
+    Serial.println("RTC time has been set.");
+  }
+
+  Serial.println();
+  Serial.println("All sensors initialized.");
+  Serial.println();
+}
+
+
+// ---------------- LOOP ----------------
+
+void loop() {
+
+  // -------- READ RTC --------
+
+  DateTime now = rtc.now();
+
+  // -------- READ DHT22 --------
+
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+
+  // -------- READ BH1750 --------
+
+  float light = lightMeter.readLightLevel();
+
+
+  // -------- CHECK DHT22 --------
+
+  if (isnan(temperature) || isnan(humidity)) {
+
+    Serial.println("ERROR: Failed to read DHT22");
+
+  } 
+  else {
+
+    // -------- PRINT TIMESTAMP --------
+
+    Serial.print(now.year());
+    Serial.print("-");
+
+    if (now.month() < 10)
+      Serial.print("0");
+
+    Serial.print(now.month());
+    Serial.print("-");
+
+    if (now.day() < 10)
+      Serial.print("0");
+
+    Serial.print(now.day());
+
+    Serial.print(" ");
+
+    if (now.hour() < 10)
+      Serial.print("0");
+
+    Serial.print(now.hour());
+    Serial.print(":");
+
+    if (now.minute() < 10)
+      Serial.print("0");
+
+    Serial.print(now.minute());
+    Serial.print(":");
+
+    if (now.second() < 10)
+      Serial.print("0");
+
+    Serial.println(now.second());
+
+
+    // -------- PRINT SENSOR VALUES --------
+
+    Serial.print("Temperature: ");
+    Serial.print(temperature);
+    Serial.println(" °C");
+
+    Serial.print("Humidity:    ");
+    Serial.print(humidity);
+    Serial.println(" %");
+
+    Serial.print("Light:       ");
+    Serial.print(light);
+    Serial.println(" lux");
+
+    Serial.println("--------------------------------");
+  }
+
+  delay(2000);
+}
